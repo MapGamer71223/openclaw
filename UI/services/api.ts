@@ -45,20 +45,23 @@ const DEFAULT_BACKEND_PORT = 8000;
  * simulator, or emulator) and swaps in the backend's port.
  */
 function guessDevBaseUrl(): string {
-  // Android emulator can't resolve "localhost" as the host machine.
-  if (Platform.OS === 'android') {
-    return `http://10.0.2.2:${DEFAULT_BACKEND_PORT}`;
-  }
-
-  // `hostUri` looks like "192.168.1.23:8081" (LAN) or "localhost:8081"
-  // (simulator/web). Reuse its host, but point at the backend's port.
+  // `hostUri` looks like "172.16.178.241:8081" (LAN) or "localhost:8081"
   const hostUri =
     Constants.expoConfig?.hostUri ??
-    // Older Expo SDKs exposed this under manifest instead of expoConfig.
     (Constants as any)?.manifest2?.extra?.expoClient?.hostUri ??
     (Constants as any)?.manifest?.hostUri;
 
-  const host = typeof hostUri === 'string' && hostUri.length > 0 ? hostUri.split(':')[0] : 'localhost';
+  let host = typeof hostUri === 'string' && hostUri.length > 0 ? hostUri.split(':')[0] : 'localhost';
+
+  // 0.0.0.0 is a server bind address, never a valid HTTP client destination.
+  if (host === '0.0.0.0') {
+    host = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+  }
+
+  // Android emulator can't resolve "localhost"
+  if (Platform.OS === 'android' && (host === 'localhost' || host === '127.0.0.1')) {
+    return `http://10.0.2.2:${DEFAULT_BACKEND_PORT}`;
+  }
 
   return `http://${host}:${DEFAULT_BACKEND_PORT}`;
 }
@@ -67,9 +70,17 @@ function resolveBaseUrl(): string {
   const configured = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (configured && configured.trim().length > 0) {
     let url = configured.trim().replace(/\/+$/, '');
+    
+    // Replace invalid 0.0.0.0 with reachable host
+    if (url.includes('0.0.0.0')) {
+      const hostUri = Constants.expoConfig?.hostUri;
+      const lanHost = typeof hostUri === 'string' ? hostUri.split(':')[0] : null;
+      const replacement = lanHost && lanHost !== '0.0.0.0' ? lanHost : (Platform.OS === 'android' ? '10.0.2.2' : 'localhost');
+      url = url.replace(/0\.0\.0\.0/g, replacement);
+    }
+
     if (Platform.OS === 'android' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
-      // Android cannot resolve "localhost" as host machine -- map to 10.0.2.2 for Android emulator
-      url = url.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
+      url = url.replace(/localhost/g, '10.0.2.2').replace(/127\.0\.0\.1/g, '10.0.2.2');
     }
     return url;
   }
