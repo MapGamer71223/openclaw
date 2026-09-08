@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Media Forensics :: Investigation Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("forensic-theme");
+          var light = stored === "light" || (!stored && window.matchMedia("(prefers-color-scheme: light)").matches);
+          if (light) document.documentElement.classList.add("light");
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-forensic-bg text-forensic-text font-sans">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

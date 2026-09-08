@@ -1,0 +1,4 @@
+{
+  "tests/test_pipeline.py::TestClient": true,
+  "tests/test_ai_detector_architecture.py::test_real_mode_configured_flag_without_real_class_fails_loudly_instead_of_faking": true
+}

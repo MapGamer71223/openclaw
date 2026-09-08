@@ -1,0 +1,27 @@
+name: media-forensics
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - ffmpeg
+  - pip
+  - pip:
+      - fastapi==0.115.6
+      - uvicorn[standard]==0.32.1
+      - sqlalchemy==2.0.36
+      - pydantic==2.10.3
+      - python-multipart==0.0.19
+      - Pillow==11.0.0
+      - numpy==2.1.3
+      - opencv-python-headless==4.10.0.84
+      - imagehash==4.3.1
+      - httpx==0.28.1
+      - websockets==14.1
+      # Real, offline AI-image detector (no API key/cost). For your GPU,
+      # follow https://pytorch.org/get-started/locally/ once if you want
+      # the CUDA build specifically; plain `torch` below still works
+      # (CPU-only) if skipped.
+      - torch
+      - transformers==4.46.3
+      # Free, keyless origin/source search
+      - ddgs

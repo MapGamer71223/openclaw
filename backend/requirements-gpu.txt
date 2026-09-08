@@ -1,0 +1,4 @@
+# Install torch FIRST with the CUDA index (see SETUP command below) --
+# `pip install -r requirements-gpu.txt` alone pulls CPU-only torch from PyPI.
+transformers==4.46.3
+accelerate==1.1.1

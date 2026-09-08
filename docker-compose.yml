@@ -1,0 +1,54 @@
+services:
+  provdb:
+    image: pgvector/pgvector:pg16
+    environment:
+      - POSTGRES_USER=provenance
+      - POSTGRES_PASSWORD=provenance
+      - POSTGRES_DB=provenance
+    ports:
+      - "5433:5432"  # 5433 so it never collides with a Postgres you already run on 5432
+    volumes:
+      - provdb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U provenance -d provenance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      provdb:
+        condition: service_healthy
+    environment:
+      - DEMO_MODE=${DEMO_MODE:-true}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - PROVENANCE_DATABASE_URL=${PROVENANCE_DATABASE_URL:-postgresql+psycopg2://provenance:provenance@provdb:5432/provenance}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-100}
+      - VIDEO_FRAME_SAMPLE_SECONDS=${VIDEO_FRAME_SAMPLE_SECONDS:-2.0}
+      - VIDEO_MAX_FRAMES=${VIDEO_MAX_FRAMES:-24}
+      - BRAVE_API_KEY=${BRAVE_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - REVERSE_IMAGE_SEARCH_API_KEY=${REVERSE_IMAGE_SEARCH_API_KEY:-}
+      - OPENCLAW_ENABLED=${OPENCLAW_ENABLED:-false}
+      - FRONTEND_ORIGIN=http://localhost:5173
+      - SOURCE_CONFIDENCE_STOP_THRESHOLD=${SOURCE_CONFIDENCE_STOP_THRESHOLD:-0.85}
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  provdb_data:
