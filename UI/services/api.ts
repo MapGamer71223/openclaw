@@ -34,7 +34,7 @@
  * explicitly for anything beyond quick local testing.
  */
 import Constants from 'expo-constants';
-import { uploadAsync, FileSystemUploadType } from 'expo-file-system';
+import { uploadAsync, FileSystemUploadType } from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 
 const DEFAULT_BACKEND_PORT = 8000;
