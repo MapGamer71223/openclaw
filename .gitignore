@@ -24,6 +24,7 @@ data/reports/*
 *.pth
 *.onnx
 *.safetensors
+*.zip
 backend/database_script/data/
 backend/sample_head.csv
 
