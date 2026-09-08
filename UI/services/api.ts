@@ -226,13 +226,34 @@ export interface UploadFileInput {
  * `File`/`Blob`, but RN's networking layer knows how to stream it from
  * the given `uri`).
  */
-export function apiUpload<T>(path: string, file: UploadFileInput, fieldName = 'file', options?: RequestOptions): Promise<T> {
+export async function apiUpload<T>(path: string, file: UploadFileInput, fieldName = 'file', options?: RequestOptions): Promise<T> {
   const formData = new FormData();
-  formData.append(fieldName, {
-    uri: file.uri,
-    name: file.name,
-    type: file.mimeType,
-  } as unknown as Blob);
+
+  if (Platform.OS === 'web') {
+    try {
+      const res = await fetch(file.uri);
+      const blob = await res.blob();
+      const webFile = new File([blob], file.name || 'upload.jpg', { type: file.mimeType || 'image/jpeg' });
+      formData.append(fieldName, webFile);
+    } catch {
+      formData.append(fieldName, {
+        uri: file.uri,
+        name: file.name || 'upload.jpg',
+        type: file.mimeType || 'image/jpeg',
+      } as any);
+    }
+  } else {
+    let uri = file.uri;
+    if (Platform.OS === 'android' && !uri.startsWith('file://') && !uri.startsWith('content://') && !uri.startsWith('ph://')) {
+      uri = `file://${uri}`;
+    }
+    const filePayload = {
+      uri: uri,
+      name: file.name || (file.mimeType?.includes('video') ? 'video.mp4' : 'photo.jpg'),
+      type: file.mimeType || (file.name?.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg'),
+    };
+    formData.append(fieldName, filePayload as any);
+  }
 
   return request<T>(
     path,
