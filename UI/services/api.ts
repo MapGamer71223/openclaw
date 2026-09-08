@@ -34,7 +34,7 @@
  * explicitly for anything beyond quick local testing.
  */
 import Constants from 'expo-constants';
-import * as FileSystem from 'expo-file-system';
+import { uploadAsync, FileSystemUploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
 
 const DEFAULT_BACKEND_PORT = 8000;
@@ -232,9 +232,9 @@ export async function apiUpload<T>(path: string, file: UploadFileInput, fieldNam
 
   if (Platform.OS !== 'web') {
     try {
-      const response = await FileSystem.uploadAsync(url, file.uri, {
+      const response = await uploadAsync(url, file.uri, {
         httpMethod: 'POST',
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        uploadType: FileSystemUploadType?.MULTIPART ?? 1,
         fieldName: fieldName,
         mimeType: file.mimeType || (file.name?.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg'),
         headers: {
