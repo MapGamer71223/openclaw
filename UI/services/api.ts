@@ -66,7 +66,12 @@ function guessDevBaseUrl(): string {
 function resolveBaseUrl(): string {
   const configured = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (configured && configured.trim().length > 0) {
-    return configured.trim().replace(/\/+$/, '');
+    let url = configured.trim().replace(/\/+$/, '');
+    if (Platform.OS === 'android' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+      // Android cannot resolve "localhost" as host machine -- map to 10.0.2.2 for Android emulator
+      url = url.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
+    }
+    return url;
   }
   return guessDevBaseUrl();
 }
