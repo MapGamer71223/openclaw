@@ -34,6 +34,7 @@
  * explicitly for anything beyond quick local testing.
  */
 import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 
 const DEFAULT_BACKEND_PORT = 8000;
@@ -226,94 +227,72 @@ export interface UploadFileInput {
  * `File`/`Blob`, but RN's networking layer knows how to stream it from
  * the given `uri`).
  */
-export function apiUpload<T>(path: string, file: UploadFileInput, fieldName = 'file', options?: RequestOptions): Promise<T> {
+export async function apiUpload<T>(path: string, file: UploadFileInput, fieldName = 'file', options?: RequestOptions): Promise<T> {
   const url = path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
 
-  if (Platform.OS === 'web') {
-    return (async () => {
-      const formData = new FormData();
-      try {
-        const res = await fetch(file.uri);
-        const blob = await res.blob();
-        const webFile = new File([blob], file.name || 'upload.jpg', { type: file.mimeType || 'image/jpeg' });
-        formData.append(fieldName, webFile);
-      } catch {
-        formData.append(fieldName, {
-          uri: file.uri,
-          name: file.name || 'upload.jpg',
-          type: file.mimeType || 'image/jpeg',
-        } as any);
-      }
-      return request<T>(
-        path,
-        {
-          method: 'POST',
-          headers: { Accept: 'application/json' },
-          body: formData,
+  if (Platform.OS !== 'web') {
+    try {
+      const response = await FileSystem.uploadAsync(url, file.uri, {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: fieldName,
+        mimeType: file.mimeType || (file.name?.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg'),
+        headers: {
+          Accept: 'application/json',
         },
-        { timeoutMs: UPLOAD_TIMEOUT_MS, ...options },
-      );
-    })();
-  }
+      });
 
-  // React Native Android/iOS: Use XMLHttpRequest directly to stream native file URIs
-  return new Promise<T>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const timeoutMs = options?.timeoutMs ?? UPLOAD_TIMEOUT_MS;
-
-    xhr.open('POST', url);
-    xhr.timeout = timeoutMs;
-    xhr.setRequestHeader('Accept', 'application/json');
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        if (xhr.status === 204) return resolve(undefined as T);
+      if (response.status >= 200 && response.status < 300) {
+        if (response.status === 204) return undefined as T;
         try {
-          const json = JSON.parse(xhr.responseText);
-          resolve(json as T);
+          return JSON.parse(response.body) as T;
         } catch {
-          resolve(xhr.responseText as unknown as T);
+          return response.body as unknown as T;
         }
       } else {
-        let errorMsg = `Request failed with status ${xhr.status}`;
+        let errorMsg = `Request failed with status ${response.status}`;
         try {
-          const body = JSON.parse(xhr.responseText);
+          const body = JSON.parse(response.body);
           if (body?.detail) {
             errorMsg = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
           }
         } catch {}
-        reject(new ApiError(errorMsg, { status: xhr.status }));
+        throw new ApiError(errorMsg, { status: response.status, body: response.body });
       }
-    };
-
-    xhr.onerror = () => {
-      reject(
-        new ApiError(
-          `Could not reach the JanSatark AI backend at ${API_BASE_URL}. Check that it is running and reachable from this device.`,
-          { isNetworkError: true },
-        ),
+    } catch (err: any) {
+      if (err instanceof ApiError) throw err;
+      const msg = err?.message || String(err);
+      throw new ApiError(
+        `Could not reach the JanSatark AI backend at ${API_BASE_URL}. Check that it is running and reachable from this device. (${msg})`,
+        { isNetworkError: true },
       );
-    };
-
-    xhr.ontimeout = () => {
-      reject(new ApiError(`Upload timed out after ${timeoutMs}ms`, { isTimeout: true }));
-    };
-
-    const formData = new FormData();
-    let uri = file.uri;
-    if (Platform.OS === 'android' && !uri.startsWith('file://') && !uri.startsWith('content://') && !uri.startsWith('ph://')) {
-      uri = `file://${uri}`;
     }
+  }
 
-    const filePayload = {
-      uri: uri,
-      name: file.name || (file.mimeType?.includes('video') ? 'video.mp4' : 'photo.jpg'),
-      type: file.mimeType || (file.name?.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg'),
-    };
+  // Web implementation using standard FormData / fetch
+  const formData = new FormData();
+  try {
+    const res = await fetch(file.uri);
+    const blob = await res.blob();
+    const webFile = new File([blob], file.name || 'upload.jpg', { type: file.mimeType || 'image/jpeg' });
+    formData.append(fieldName, webFile);
+  } catch {
+    formData.append(fieldName, {
+      uri: file.uri,
+      name: file.name || 'upload.jpg',
+      type: file.mimeType || 'image/jpeg',
+    } as any);
+  }
 
-    formData.append(fieldName, filePayload as any);
-    xhr.send(formData);
-  });
+  return request<T>(
+    path,
+    {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      body: formData,
+    },
+    { timeoutMs: UPLOAD_TIMEOUT_MS, ...options },
+  );
 }
 
 /** Builds a fully-qualified URL for a backend-served asset (e.g. original media, ELA overlay). */

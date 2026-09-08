@@ -56,5 +56,8 @@
     "typescript": "~6.0.3",
     "zod": "^3.24.0",
     "zod-validation-error": "^3.4.0"
+  },
+  "dependencies": {
+    "expo-file-system": "~57.0.6"
   }
 }
